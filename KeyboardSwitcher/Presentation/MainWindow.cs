@@ -60,6 +60,9 @@ internal sealed class MainWindow : Window
         }
         else
         {
+            ShowInTaskbar = false;
+            WindowState = WindowState.Minimized;
+            Opened += HideAfterStartup;
             IsVisible = false;
         }
     }
@@ -162,8 +165,15 @@ internal sealed class MainWindow : Window
 
     private void ShowAndActivate()
     {
+        ShowInTaskbar = true;
         Show();
         Activate();
+    }
+
+    private void HideAfterStartup(object? sender, EventArgs args)
+    {
+        Opened -= HideAfterStartup;
+        Hide();
     }
 
     private static void CaptureHotkey( TextBox target, KeyEventArgs args )
