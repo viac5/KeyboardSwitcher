@@ -19,9 +19,9 @@ internal sealed class MainWindow : Window
         _transformer = transformer;
         Title = "Keyboard Switcher";
         Width = 560;
-        Height = 500;
+        Height = 620;
         MinWidth = 480;
-        MinHeight = 420;
+        MinHeight = 520;
         Background = new SolidColorBrush( Color.Parse( "#101318" ) );
         Content = BuildContent( settings, saveSettings );
         Closing += ( _, args ) =>
@@ -61,8 +61,6 @@ internal sealed class MainWindow : Window
         else
         {
             ShowInTaskbar = false;
-            WindowState = WindowState.Minimized;
-            Opened += HideAfterStartup;
             IsVisible = false;
         }
     }
@@ -71,6 +69,11 @@ internal sealed class MainWindow : Window
     {
         var layoutHotkey = new TextBox { Text = settings.Layout, Watermark = "Сочетание клавиш" };
         var caseHotkey = new TextBox { Text = settings.Case, Watermark = "Сочетание клавиш" };
+        var switchSystemLayout = new CheckBox
+        {
+            Content = "После смены раскладки текста переключать системную раскладку",
+            IsChecked = settings.SwitchSystemLayout
+        };
         var testInput = new TextBox { AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, MinHeight = 92 };
         var result = new TextBlock { Foreground = Brushes.LightGray, TextWrapping = TextWrapping.Wrap };
         var saveButton = new Button { Content = "Сохранить сочетания", HorizontalAlignment = HorizontalAlignment.Left };
@@ -82,6 +85,7 @@ internal sealed class MainWindow : Window
         {
             settings.Layout = layoutHotkey.Text?.Trim() ?? string.Empty;
             settings.Case = caseHotkey.Text?.Trim() ?? string.Empty;
+            settings.SwitchSystemLayout = switchSystemLayout.IsChecked == true;
             saveSettings( settings );
             result.Text = "Сочетания сохранены";
         };
@@ -92,6 +96,7 @@ internal sealed class MainWindow : Window
             var defaults = new HotkeySettings();
             layoutHotkey.Text = defaults.Layout;
             caseHotkey.Text = defaults.Case;
+            switchSystemLayout.IsChecked = defaults.SwitchSystemLayout;
             saveSettings( defaults );
             result.Text = "Настройки по умолчанию восстановлены";
         };
@@ -147,6 +152,7 @@ internal sealed class MainWindow : Window
                             caseHotkey.SetGrid( 1, 1 )
                         }
                     },
+                    switchSystemLayout,
                     new StackPanel
                         { Orientation = Orientation.Horizontal, Spacing = 10, Children = { saveButton, resetButton } },
                     new TextBlock
@@ -168,12 +174,6 @@ internal sealed class MainWindow : Window
         ShowInTaskbar = true;
         Show();
         Activate();
-    }
-
-    private void HideAfterStartup(object? sender, EventArgs args)
-    {
-        Opened -= HideAfterStartup;
-        Hide();
     }
 
     private static void CaptureHotkey( TextBox target, KeyEventArgs args )

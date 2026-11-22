@@ -38,6 +38,10 @@ internal sealed class JsonHotkeySettingsStore : IHotkeySettingsStore
         Directory.CreateDirectory(Path.GetDirectoryName(filePath)!);
         File.WriteAllText(
             filePath,
-            JsonSerializer.Serialize(settings, new JsonSerializerOptions { WriteIndented = true }));
+            JsonSerializer.Serialize(settings, new JsonSerializerOptions
+            {
+                WriteIndented = true,
+                DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.Never
+            }));
     }
 }

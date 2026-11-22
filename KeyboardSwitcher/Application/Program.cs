@@ -28,29 +28,37 @@ internal static class Program
 internal sealed class App : Avalonia.Application
 {
     private readonly ITextTransformer transformer = new TextTransformer();
-    private readonly ISelectedTextService selectedTextService = new ClipboardSelectedTextService(
-        () => (Avalonia.Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime)
-            ?.MainWindow?.Clipboard);
     private readonly IGlobalHotkeyService hotkeyService = new SharpHookGlobalHotkeyService();
     private readonly IAutostartService autostartService = new PlatformAutostartService();
     private readonly IHotkeySettingsStore settingsStore = new JsonHotkeySettingsStore();
+    private readonly ISystemKeyboardLayoutService systemKeyboardLayoutService = new SystemKeyboardLayoutService();
+    private HotkeySettings settings = new();
+    private MainWindow? mainWindow;
+    private readonly ISelectedTextService selectedTextService;
+
+    public App()
+    {
+        selectedTextService = new ClipboardSelectedTextService(
+            () => mainWindow?.Clipboard);
+    }
 
     public override void Initialize() => Styles.Add(new FluentTheme());
 
     public override void OnFrameworkInitializationCompleted()
     {
-        var settings = settingsStore.Load();
+        settings = settingsStore.Load();
         hotkeyService.Update(settings);
 
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
             desktop.ShutdownMode = ShutdownMode.OnExplicitShutdown;
-            desktop.MainWindow = new MainWindow(
+            mainWindow = new MainWindow(
                 transformer,
                 settings,
                 SaveSettings,
                 () => desktop.Shutdown(),
                 showAtStartup: false);
+            desktop.MainWindow = null;
         }
 
         hotkeyService.ActionPressed += action => _ = HandleActionAsync(action);
@@ -59,10 +67,11 @@ internal sealed class App : Avalonia.Application
         base.OnFrameworkInitializationCompleted();
     }
 
-    private void SaveSettings(HotkeySettings settings)
+    private void SaveSettings(HotkeySettings newSettings)
     {
-        settingsStore.Save(settings);
-        hotkeyService.Update(settings);
+        settingsStore.Save(newSettings);
+        hotkeyService.Update(newSettings);
+        settings = newSettings;
     }
 
     private async Task HandleActionAsync(TextAction action)
@@ -71,6 +80,11 @@ internal sealed class App : Avalonia.Application
         try
         {
             await selectedTextService.TransformSelectionAsync(action, transformer);
+            if (action == TextAction.SwapLayout && settings.SwitchSystemLayout)
+            {
+                Console.Error.WriteLine("KeyboardSwitcher: switching system layout.");
+                systemKeyboardLayoutService.Toggle();
+            }
         }
         catch (Exception exception)
         {

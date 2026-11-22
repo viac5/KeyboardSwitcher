@@ -36,7 +36,7 @@ internal sealed class ClipboardSelectedTextService : ISelectedTextService
             await SetClipboardTextAsync(selectionMarker);
 
             SimulateCopy();
-            await Task.Delay(300);
+            await Task.Delay(OperatingSystem.IsLinux() ? 120 : 80);
 
             var selectedText = await GetClipboardTextAsync();
             if (!string.IsNullOrEmpty(selectedText) && selectedText != selectionMarker)
@@ -45,7 +45,7 @@ internal sealed class ClipboardSelectedTextService : ISelectedTextService
                 await Task.Delay(60);
                 SimulatePaste();
                 Console.Error.WriteLine($"KeyboardSwitcher: transformed selected text ({action}).");
-                await Task.Delay(600);
+                await Task.Delay(OperatingSystem.IsLinux() ? 180 : 80);
             }
             else
             {
