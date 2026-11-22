@@ -3,6 +3,8 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Layout;
 using Avalonia.Media;
+using Avalonia.Media.Imaging;
+using Avalonia.Platform;
 using KeyboardSwitcher.Domain;
 
 namespace KeyboardSwitcher.Presentation;
@@ -12,7 +14,7 @@ internal sealed class MainWindow : Window
     private readonly ITextTransformer _transformer;
 
     public MainWindow( ITextTransformer transformer, HotkeySettings settings, Action<HotkeySettings> saveSettings,
-        Action shutdown )
+        Action shutdown, bool showAtStartup )
     {
         _transformer = transformer;
         Title = "Keyboard Switcher";
@@ -38,8 +40,28 @@ internal sealed class MainWindow : Window
         };
         trayMenu.Items.Add( showItem );
         trayMenu.Items.Add( exitItem );
-        var tray = new TrayIcon { ToolTipText = "Keyboard Switcher", Menu = trayMenu };
-        TrayIcon.SetIcons( Avalonia.Application.Current!, [tray] );
+
+        using var iconStream = AssetLoader.Open(new Uri("avares://KeyboardSwitcher/Assets/tray.png"));
+        var icon = new WindowIcon(new Bitmap(iconStream));
+        Icon = icon;
+        var tray = new TrayIcon
+        {
+            Icon = icon,
+            ToolTipText = "Keyboard Switcher",
+            Menu = trayMenu,
+            IsVisible = true
+        };
+        TrayIcon.SetIcons(Avalonia.Application.Current!, [tray]);
+
+        if (showAtStartup)
+        {
+            Show();
+            Activate();
+        }
+        else
+        {
+            IsVisible = false;
+        }
     }
 
     private Control BuildContent( HotkeySettings settings, Action<HotkeySettings> saveSettings )
@@ -146,32 +168,33 @@ internal sealed class MainWindow : Window
 
     private static void CaptureHotkey( TextBox target, KeyEventArgs args )
     {
-        KeyModifiers modifiers = args.KeyModifiers;
         var parts = new List<string>();
-        if ((modifiers & KeyModifiers.Control) != 0)
-        {
-            parts.Add( "Ctrl" );
-        }
 
-        if ((modifiers & KeyModifiers.Alt) != 0)
-        {
-            parts.Add( "Alt" );
-        }
+        if ((args.KeyModifiers & KeyModifiers.Control) != 0) parts.Add("Ctrl");
+        if ((args.KeyModifiers & KeyModifiers.Alt) != 0) parts.Add("Alt");
+        if ((args.KeyModifiers & KeyModifiers.Shift) != 0) parts.Add("Shift");
 
-        if ((modifiers & KeyModifiers.Shift) != 0)
+        if (args.Key is Key.LeftCtrl or Key.RightCtrl && !parts.Contains("Ctrl"))
         {
-            parts.Add( "Shift" );
+            parts.Add("Ctrl");
         }
-
-        if (args.Key is not (Key.LeftCtrl or Key.RightCtrl or Key.LeftAlt or Key.RightAlt or Key.LeftShift
-            or Key.RightShift))
+        else if (args.Key is Key.LeftAlt or Key.RightAlt && !parts.Contains("Alt"))
         {
-            parts.Add( args.Key.ToString() );
+            parts.Add("Alt");
+        }
+        else if (args.Key is Key.LeftShift or Key.RightShift && !parts.Contains("Shift"))
+        {
+            parts.Add("Shift");
+        }
+        else if (args.Key is not (Key.LeftCtrl or Key.RightCtrl or Key.LeftAlt or Key.RightAlt
+            or Key.LeftShift or Key.RightShift))
+        {
+            parts.Add(args.Key.ToString());
         }
 
         if (parts.Count > 0)
         {
-            target.Text = string.Join( " + ", parts );
+            target.Text = string.Join(" + ", parts);
             args.Handled = true;
         }
     }

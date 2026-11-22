@@ -1,4 +1,5 @@
-﻿using Avalonia;
+﻿using System.Diagnostics;
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Themes.Fluent;
@@ -27,7 +28,9 @@ internal static class Program
 internal sealed class App : Avalonia.Application
 {
     private readonly ITextTransformer transformer = new TextTransformer();
-    private readonly ISelectedTextService selectedTextService = new ClipboardSelectedTextService();
+    private readonly ISelectedTextService selectedTextService = new ClipboardSelectedTextService(
+        () => (Avalonia.Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime)
+            ?.MainWindow?.Clipboard);
     private readonly IGlobalHotkeyService hotkeyService = new SharpHookGlobalHotkeyService();
     private readonly IAutostartService autostartService = new PlatformAutostartService();
     private readonly IHotkeySettingsStore settingsStore = new JsonHotkeySettingsStore();
@@ -46,7 +49,8 @@ internal sealed class App : Avalonia.Application
                 transformer,
                 settings,
                 SaveSettings,
-                () => desktop.Shutdown());
+                () => desktop.Shutdown(),
+                showAtStartup: false);
         }
 
         hotkeyService.ActionPressed += action => _ = HandleActionAsync(action);
@@ -68,9 +72,9 @@ internal sealed class App : Avalonia.Application
         {
             await selectedTextService.TransformSelectionAsync(action, transformer);
         }
-        catch
+        catch (Exception exception)
         {
-            // A focused application can reject synthetic clipboard input.
+            Console.Error.WriteLine($"KeyboardSwitcher selection transform failed: {exception}");
         }
     }
 }
